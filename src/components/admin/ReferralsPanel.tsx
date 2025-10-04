@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { Referral, ReferralSettings } from "@/types/database";
 import { DataCard } from "@/components/ui/DataCard";
 import { Button } from "@/components/ui/button";
@@ -17,7 +17,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from "@/components/ui/pagination";
 import { useFirebaseService } from "@/hooks/useFirebaseService";
+import { useDebounce } from "@/hooks/useDebounce";
 
 interface ReferralsPanelProps {
   referrals: { [key: string]: Referral };
@@ -30,6 +39,7 @@ export function ReferralsPanel({ referrals, referralSettings, freeTrialClaims, s
   const [isEditingSettings, setIsEditingSettings] = useState(false);
   const [editedSettings, setEditedSettings] = useState<ReferralSettings>({ ...referralSettings });
   const [searchTerm, setSearchTerm] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
   const [editingReferral, setEditingReferral] = useState<string | null>(null);
   const [editedReferral, setEditedReferral] = useState<Referral | null>(null);
   const [deleteConfirmation, setDeleteConfirmation] = useState<{open: boolean; userId: string}>({
@@ -38,6 +48,8 @@ export function ReferralsPanel({ referrals, referralSettings, freeTrialClaims, s
   });
   
   const { updateData, removeData } = useFirebaseService(service);
+  const debouncedSearchTerm = useDebounce(searchTerm, 300);
+  const ITEMS_PER_PAGE = 50;
 
   const handleSaveSettings = async () => {
     try {
@@ -96,14 +108,27 @@ export function ReferralsPanel({ referrals, referralSettings, freeTrialClaims, s
     }
   };
 
-  const filteredReferrals = Object.entries(referrals).filter(([userId, referral]) =>
-    userId.toLowerCase().includes(searchTerm.toLowerCase()) || 
-    referral.referral_code.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredAndSortedReferrals = useMemo(() => {
+    const filtered = Object.entries(referrals).filter(([userId, referral]) =>
+      userId.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) || 
+      referral.referral_code.toLowerCase().includes(debouncedSearchTerm.toLowerCase())
+    );
+    
+    return filtered.sort((a, b) => b[1].referral_points - a[1].referral_points);
+  }, [referrals, debouncedSearchTerm]);
 
-  const sortedReferrals = filteredReferrals.sort((a, b) => 
-    b[1].referral_points - a[1].referral_points
-  );
+  const totalPages = Math.ceil(filteredAndSortedReferrals.length / ITEMS_PER_PAGE);
+  
+  const paginatedReferrals = useMemo(() => {
+    const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+    const endIndex = startIndex + ITEMS_PER_PAGE;
+    return filteredAndSortedReferrals.slice(startIndex, endIndex);
+  }, [filteredAndSortedReferrals, currentPage]);
+
+  const handleSearchChange = useCallback((value: string) => {
+    setSearchTerm(value);
+    setCurrentPage(1);
+  }, []);
 
   return (
     <div className="space-y-6">
@@ -248,12 +273,14 @@ export function ReferralsPanel({ referrals, referralSettings, freeTrialClaims, s
       
       <div className="space-y-4">
         <div className="flex justify-between items-center">
-          <h3 className="text-xl font-semibold">User Referrals</h3>
+          <h3 className="text-xl font-semibold">
+            User Referrals ({filteredAndSortedReferrals.length} total)
+          </h3>
           <div className="w-64">
             <Input
               placeholder="Search by User ID or Code"
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              onChange={(e) => handleSearchChange(e.target.value)}
             />
           </div>
         </div>
@@ -271,8 +298,8 @@ export function ReferralsPanel({ referrals, referralSettings, freeTrialClaims, s
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {sortedReferrals.length > 0 ? (
-                  sortedReferrals.map(([userId, referral]) => (
+                {paginatedReferrals.length > 0 ? (
+                  paginatedReferrals.map(([userId, referral]) => (
                     <TableRow key={userId}>
                       <TableCell className="font-medium">{userId}</TableCell>
                       <TableCell>{referral.referral_code}</TableCell>
@@ -322,6 +349,53 @@ export function ReferralsPanel({ referrals, referralSettings, freeTrialClaims, s
               </TableBody>
             </Table>
           </div>
+          
+          {totalPages > 1 && (
+            <div className="mt-4 flex justify-center">
+              <Pagination>
+                <PaginationContent>
+                  <PaginationItem>
+                    <PaginationPrevious 
+                      onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                      className={currentPage === 1 ? "pointer-events-none opacity-50" : "cursor-pointer"}
+                    />
+                  </PaginationItem>
+                  
+                  {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                    let pageNum;
+                    if (totalPages <= 5) {
+                      pageNum = i + 1;
+                    } else if (currentPage <= 3) {
+                      pageNum = i + 1;
+                    } else if (currentPage >= totalPages - 2) {
+                      pageNum = totalPages - 4 + i;
+                    } else {
+                      pageNum = currentPage - 2 + i;
+                    }
+                    
+                    return (
+                      <PaginationItem key={pageNum}>
+                        <PaginationLink
+                          onClick={() => setCurrentPage(pageNum)}
+                          isActive={currentPage === pageNum}
+                          className="cursor-pointer"
+                        >
+                          {pageNum}
+                        </PaginationLink>
+                      </PaginationItem>
+                    );
+                  })}
+                  
+                  <PaginationItem>
+                    <PaginationNext 
+                      onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                      className={currentPage === totalPages ? "pointer-events-none opacity-50" : "cursor-pointer"}
+                    />
+                  </PaginationItem>
+                </PaginationContent>
+              </Pagination>
+            </div>
+          )}
         </div>
       </div>
       
