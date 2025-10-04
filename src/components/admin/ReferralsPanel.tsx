@@ -49,7 +49,7 @@ export function ReferralsPanel({ referrals, referralSettings, freeTrialClaims, s
   
   const { updateData, removeData } = useFirebaseService(service);
   const debouncedSearchTerm = useDebounce(searchTerm, 300);
-  const ITEMS_PER_PAGE = 50;
+  const ITEMS_PER_PAGE = 25;
 
   const handleSaveSettings = async () => {
     try {
@@ -351,7 +351,7 @@ export function ReferralsPanel({ referrals, referralSettings, freeTrialClaims, s
           </div>
           
           {totalPages > 1 && (
-            <div className="mt-4 flex justify-center">
+            <div className="border-t border-border py-4">
               <Pagination>
                 <PaginationContent>
                   <PaginationItem>
