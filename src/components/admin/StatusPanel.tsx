@@ -335,19 +335,23 @@ export function StatusPanel({ transactions, service }: StatusPanelProps) {
     return formattedTime;
   };
 
-  // Get date badge text (TDY/TMR/date)
+  // Get date badge text (YST/TDY/TMR/date)
   const getDateBadgeText = (dateString: string): string => {
     try {
       const date = new Date(dateString.replace(' ', 'T'));
       const today = new Date();
       const tomorrow = new Date();
       tomorrow.setDate(today.getDate() + 1);
+      const yesterday = new Date();
+      yesterday.setDate(today.getDate() - 1);
       
       // Compare dates
       if (date.toDateString() === today.toDateString()) {
         return "TDY";
       } else if (date.toDateString() === tomorrow.toDateString()) {
         return "TMR";
+      } else if (date.toDateString() === yesterday.toDateString()) {
+        return "YST";
       } else {
         return format(date, "dd MMM").toUpperCase();
       }
@@ -510,7 +514,7 @@ export function StatusPanel({ transactions, service }: StatusPanelProps) {
                     {sortOption === 'time' && (
                       <Badge 
                         variant="secondary" 
-                        className="absolute -top-2 -right-2 h-5 px-1.5 text-[10px] font-['NexaLight'] bg-primary text-primary-foreground border-0 rounded-full"
+                        className="absolute -top-1.5 -right-1.5 h-4 px-1 text-[9px] font-['NexaLight'] bg-primary text-primary-foreground border-0 rounded-full"
                       >
                         {getDateBadgeText(transaction.end_time)}
                       </Badge>
@@ -549,7 +553,7 @@ export function StatusPanel({ transactions, service }: StatusPanelProps) {
                     {sortOption === 'time' && (
                       <Badge 
                         variant="destructive" 
-                        className="absolute -top-2 -right-2 h-5 px-1.5 text-[10px] font-['NexaLight'] border-0 rounded-full"
+                        className="absolute -top-1.5 -right-1.5 h-4 px-1 text-[9px] font-['NexaLight'] border-0 rounded-full"
                       >
                         {getDateBadgeText(transaction.end_time)}
                       </Badge>
