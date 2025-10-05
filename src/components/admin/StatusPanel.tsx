@@ -11,6 +11,7 @@ import { useFirebaseService } from "@/hooks/useFirebaseService";
 import { useAuth } from "@/context/AuthContext";
 import { format } from "date-fns";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
 
 interface Transaction {
   approved_at: string;
@@ -334,6 +335,28 @@ export function StatusPanel({ transactions, service }: StatusPanelProps) {
     return formattedTime;
   };
 
+  // Get date badge text (TDY/TMR/date)
+  const getDateBadgeText = (dateString: string): string => {
+    try {
+      const date = new Date(dateString.replace(' ', 'T'));
+      const today = new Date();
+      const tomorrow = new Date();
+      tomorrow.setDate(today.getDate() + 1);
+      
+      // Compare dates
+      if (date.toDateString() === today.toDateString()) {
+        return "TDY";
+      } else if (date.toDateString() === tomorrow.toDateString()) {
+        return "TMR";
+      } else {
+        return format(date, "dd MMM").toUpperCase();
+      }
+    } catch (e) {
+      console.error("Error formatting date badge:", e);
+      return "";
+    }
+  };
+
   // Helper function to get the correct path for updating transactions
   const getTransactionUpdatePath = (transactionId: string) => {
     // Check if this transaction exists in FTRIAL-ID
@@ -478,12 +501,20 @@ export function StatusPanel({ transactions, service }: StatusPanelProps) {
                   <button
                     key={id}
                     onClick={() => openTransactionDetails([id, transaction])}
-                    className="time-button active-time-button max-[400px]:w-full max-[400px]:mx-auto"
+                    className="time-button active-time-button max-[400px]:w-full max-[400px]:mx-auto relative"
                     title={formatDateWithTime(transaction.end_time)}
                   >
                     <span className="time-text">
                       {getButtonDisplayText(transaction, sortOption)}
                     </span>
+                    {sortOption === 'time' && (
+                      <Badge 
+                        variant="secondary" 
+                        className="absolute -top-2 -right-2 h-5 px-1.5 text-[10px] font-['NexaLight'] bg-primary text-primary-foreground border-0 rounded-full"
+                      >
+                        {getDateBadgeText(transaction.end_time)}
+                      </Badge>
+                    )}
                   </button>
                 ))
               ) : (
@@ -509,12 +540,20 @@ export function StatusPanel({ transactions, service }: StatusPanelProps) {
                   <button
                     key={id}
                     onClick={() => openTransactionDetails([id, transaction])}
-                    className="time-button expired-time-button max-[400px]:w-full max-[400px]:mx-auto"
+                    className="time-button expired-time-button max-[400px]:w-full max-[400px]:mx-auto relative"
                     title={formatDateWithTime(transaction.end_time)}
                   >
                     <span className="time-text text-red-500 dark:text-red-400">
                       {getButtonDisplayText(transaction, sortOption)}
                     </span>
+                    {sortOption === 'time' && (
+                      <Badge 
+                        variant="destructive" 
+                        className="absolute -top-2 -right-2 h-5 px-1.5 text-[10px] font-['NexaLight'] border-0 rounded-full"
+                      >
+                        {getDateBadgeText(transaction.end_time)}
+                      </Badge>
+                    )}
                   </button>
                 ))
               ) : (
